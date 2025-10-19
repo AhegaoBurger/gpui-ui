@@ -2267,6 +2267,7 @@ dependencies = [
  "gpui",
  "serde",
  "serde_json",
+ "unicode-segmentation",
 ]
 
 [[package]]

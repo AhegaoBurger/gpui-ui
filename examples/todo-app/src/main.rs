@@ -4,8 +4,9 @@ use gpui_ui_components::{
     Badge, BadgeSize, BadgeVariant, Button, ButtonVariant, ButtonSize,
     Card, CardContent, CardFooter, CardHeader, CardVariant,
     Checkbox, CheckboxSize, ToggleState,
-    Input, InputSize, InputVariant,
+    TextInput, TextInputSize, TextInputVariant,
 };
+use gpui_ui_components::text_input::text_input_actions;
 use gpui::Application;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -31,10 +32,25 @@ impl TodoItem {
 struct TodoApp {
     todos: Vec<TodoItem>,
     show_completed: bool,
+    input_text: Entity<TextInput>,
 }
 
 impl TodoApp {
-    fn new() -> Self {
+    fn new(cx: &mut Context<Self>) -> Self {
+        let app_entity = cx.entity();
+        let input_text = cx.new(|cx| {
+            TextInput::new("todo-input", cx)
+                .placeholder("Add a new todo... (Press Enter to add)")
+                .size(TextInputSize::Medium)
+                .variant(TextInputVariant::Default)
+                .on_submit(move |text, _window, cx| {
+                    app_entity.update(cx, |this, cx| {
+                        this.add_todo(text.to_string());
+                        cx.notify();
+                    })
+                })
+        });
+        
         Self {
             todos: vec![
                 TodoItem::new("Learn GPUI"),
@@ -42,6 +58,7 @@ impl TodoApp {
                 TodoItem::new("Make a todo app"),
             ],
             show_completed: true,
+            input_text,
         }
     }
 
@@ -51,19 +68,10 @@ impl TodoApp {
         }
     }
 
-    fn add_random_todo(&mut self) {
-        let random_todos = vec![
-            "Buy groceries",
-            "Walk the dog",
-            "Read a book",
-            "Write code",
-            "Go for a run",
-            "Call a friend",
-            "Clean the house",
-            "Learn something new",
-        ];
-        let random_index = (self.todos.len() % random_todos.len()) as usize;
-        self.todos.push(TodoItem::new(random_todos[random_index]));
+    fn add_todo(&mut self, text: String) {
+        if !text.trim().is_empty() {
+            self.todos.push(TodoItem::new(text));
+        }
     }
 
     fn remove_todo(&mut self, id: usize) {
@@ -119,22 +127,7 @@ impl Render for TodoApp {
                                             .child(
                                                 div()
                                                     .flex_1()
-                                                    .child(
-                                                        Input::new()
-                                                            .id("todo-input")
-                                                            .placeholder("Add a new todo...")
-                                                            .size(InputSize::Medium)
-                                                            .variant(InputVariant::Default)
-                                                    )
-                                            )
-                                            .child(
-                                                Button::new("add-random-btn", "Add Random Todo")
-                                                    .variant(ButtonVariant::Default)
-                                                    .size(ButtonSize::Medium)
-                                                    .on_click(cx.listener(|this, _event, _window, cx| {
-                                                        this.add_random_todo();
-                                                        cx.notify();
-                                                    }))
+                                                    .child(self.input_text.clone())
                                             )
                                     )
                                     .child(
@@ -241,6 +234,24 @@ fn main() {
     Application::new().run(move |cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(800.0), px(600.0)), cx);
 
+        // Bind keys for text input
+        use text_input_actions::*;
+        cx.bind_keys([
+            KeyBinding::new("backspace", Backspace, None),
+            KeyBinding::new("delete", Delete, None),
+            KeyBinding::new("left", Left, None),
+            KeyBinding::new("right", Right, None),
+            KeyBinding::new("shift-left", SelectLeft, None),
+            KeyBinding::new("shift-right", SelectRight, None),
+            KeyBinding::new("cmd-a", SelectAll, None),
+            KeyBinding::new("cmd-v", Paste, None),
+            KeyBinding::new("cmd-c", Copy, None),
+            KeyBinding::new("cmd-x", Cut, None),
+            KeyBinding::new("home", Home, None),
+            KeyBinding::new("end", End, None),
+            KeyBinding::new("enter", Submit, None),
+        ]);
+
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
@@ -251,7 +262,7 @@ fn main() {
                 }),
                 ..Default::default()
             },
-            |_window, cx| cx.new(|_cx| TodoApp::new()),
+            |_window, cx| cx.new(|cx| TodoApp::new(cx)),
         )
         .unwrap();
 

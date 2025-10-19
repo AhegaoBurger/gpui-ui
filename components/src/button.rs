@@ -81,8 +81,8 @@ impl Button {
             ButtonVariant::Default => rgb(0x3b82f6),      // primary
             ButtonVariant::Destructive => rgb(0xef4444),  // destructive
             ButtonVariant::Outline => rgb(0xffffff),      // white
-            ButtonVariant::Ghost => rgb(0x00000000),      // transparent
-            ButtonVariant::Link => rgb(0x00000000),       // transparent
+            ButtonVariant::Ghost => rgba(0x00000000),     // fully transparent
+            ButtonVariant::Link => rgba(0x00000000),      // fully transparent
         }
     }
 
@@ -147,7 +147,15 @@ impl RenderOnce for Button {
         if !self.disabled {
             button = button
                 .cursor_pointer()
-                .hover(|style| style.opacity(0.9));
+                .hover(|style| {
+                    // Ghost and Link buttons get a light background on hover
+                    match self.variant {
+                        ButtonVariant::Ghost | ButtonVariant::Link => {
+                            style.bg(rgb(0xf1f5f9)) // slate-100
+                        }
+                        _ => style.opacity(0.9)
+                    }
+                });
                 
             if let Some(handler) = self.on_click {
                 button = button.on_click(move |event, window, cx| {
