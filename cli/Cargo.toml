@@ -1,6 +1,26 @@
 [package]
-name = "cli"
-version = "0.1.0"
-edition = "2024"
+name = "gpui-ui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A CLI tool for managing GPUI UI components"
+
+[[bin]]
+name = "gpui-ui"
+path = "src/main.rs"
 
 [dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+clap.workspace = true
+reqwest.workspace = true
+colored.workspace = true
+indicatif.workspace = true
+dirs.workspace = true
+chrono.workspace = true

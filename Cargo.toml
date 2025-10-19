@@ -1,19 +1,14 @@
-[package]
-name = "gpui-ui-workspace"
-version = "0.1.0"
-edition = "2024"
-
 [workspace]
-members = ["cli", "components"]
+members = ["cli", "components", "examples/todo-app"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.0.1"
 edition = "2021"
-rust-version = "1.75"  # Adjust based on GPUI requirements
-authors = ["Your Name <your.email@example.com>"]
-license = "Apache-2.0"
-repository = "https://github.com/yourusername/gpui-ui"
+rust-version = "1.75"
+authors = ["GPUI-UI Contributors"]
+license = "MIT"
+repository = "https://github.com/AhegaoBurger/gpui-ui"
 
 [workspace.dependencies]
 # Shared dependencies with locked versions
@@ -23,4 +18,10 @@ serde_json = "1.0"
 thiserror = "1.0"
 tokio = { version = "1", features = ["full"] }
 clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json"] }
+colored = "2.1"
+indicatif = "0.17"
+dirs = "5.0"
+chrono = "0.4"
+
 gpui = "0.2.1"
