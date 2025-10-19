@@ -4,9 +4,9 @@ use gpui_ui_components::{
     Badge, BadgeSize, BadgeVariant, Button, ButtonVariant, ButtonSize,
     Card, CardContent, CardFooter, CardHeader, CardVariant,
     Checkbox, CheckboxSize, ToggleState,
-    TextInput, TextInputSize, TextInputVariant,
+    Input, InputSize, InputVariant,
 };
-use gpui_ui_components::text_input::text_input_actions;
+use gpui_ui_components::input::input_actions;
 use gpui::Application;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -32,17 +32,17 @@ impl TodoItem {
 struct TodoApp {
     todos: Vec<TodoItem>,
     show_completed: bool,
-    input_text: Entity<TextInput>,
+    input_text: Entity<Input>,
 }
 
 impl TodoApp {
     fn new(cx: &mut Context<Self>) -> Self {
         let app_entity = cx.entity();
         let input_text = cx.new(|cx| {
-            TextInput::new("todo-input", cx)
+            Input::new("todo-input", cx)
                 .placeholder("Add a new todo... (Press Enter to add)")
-                .size(TextInputSize::Medium)
-                .variant(TextInputVariant::Default)
+                .size(InputSize::Medium)
+                .variant(InputVariant::Default)
                 .on_submit(move |text, _window, cx| {
                     app_entity.update(cx, |this, cx| {
                         this.add_todo(text.to_string());
@@ -234,8 +234,8 @@ fn main() {
     Application::new().run(move |cx: &mut App| {
         let bounds = Bounds::centered(None, size(px(800.0), px(600.0)), cx);
 
-        // Bind keys for text input
-        use text_input_actions::*;
+        // Bind keys for input
+        use input_actions::*;
         cx.bind_keys([
             KeyBinding::new("backspace", Backspace, None),
             KeyBinding::new("delete", Delete, None),
