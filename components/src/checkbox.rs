@@ -1,13 +1,4 @@
 use crate::prelude::*;
-use gpui::prelude::*;
-
-/// Checkbox state
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum CheckboxState {
-    Unchecked,
-    Checked,
-    Indeterminate,
-}
 
 /// Checkbox size options
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -18,35 +9,30 @@ pub enum CheckboxSize {
 }
 
 /// A checkbox input component
+#[derive(IntoElement)]
 pub struct Checkbox {
-    state: CheckboxState,
+    id: ElementId,
+    state: ToggleState,
     size: CheckboxSize,
     label: Option<SharedString>,
     disabled: bool,
+    on_click: Option<Box<dyn Fn(&ToggleState, &mut Window, &mut App) + 'static>>,
 }
 
 impl Checkbox {
-    pub fn new() -> Self {
+    pub fn new(id: impl Into<ElementId>, state: ToggleState) -> Self {
         Self {
-            state: CheckboxState::Unchecked,
+            id: id.into(),
+            state,
             size: CheckboxSize::Medium,
             label: None,
             disabled: false,
+            on_click: None,
         }
     }
 
-    pub fn checked(mut self, checked: bool) -> Self {
-        self.state = if checked {
-            CheckboxState::Checked
-        } else {
-            CheckboxState::Unchecked
-        };
-        self
-    }
-
-    pub fn state(mut self, state: CheckboxState) -> Self {
-        self.state = state;
-        self
+    pub fn checked(id: impl Into<ElementId>, checked: bool) -> Self {
+        Self::new(id, ToggleState::from(checked))
     }
 
     pub fn size(mut self, size: CheckboxSize) -> Self {
@@ -61,6 +47,14 @@ impl Checkbox {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    pub fn on_click(
+        mut self,
+        handler: impl Fn(&ToggleState, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_click = Some(Box::new(handler));
         self
     }
 
@@ -86,8 +80,8 @@ impl Checkbox {
         }
 
         match self.state {
-            CheckboxState::Unchecked => rgb(0xffffff),
-            CheckboxState::Checked | CheckboxState::Indeterminate => rgb(0x3b82f6),
+            ToggleState::Unselected => rgb(0xffffff),
+            ToggleState::Selected | ToggleState::Indeterminate => rgb(0x3b82f6),
         }
     }
 
@@ -97,8 +91,8 @@ impl Checkbox {
         }
 
         match self.state {
-            CheckboxState::Unchecked => rgb(0xd1d5db),
-            CheckboxState::Checked | CheckboxState::Indeterminate => rgb(0x3b82f6),
+            ToggleState::Unselected => rgb(0xd1d5db),
+            ToggleState::Selected | ToggleState::Indeterminate => rgb(0x3b82f6),
         }
     }
 
@@ -110,9 +104,8 @@ impl Checkbox {
         let icon_size = self.get_icon_size();
 
         match self.state {
-            CheckboxState::Unchecked => None,
-            CheckboxState::Checked => Some(
-                // Checkmark
+            ToggleState::Unselected => None,
+            ToggleState::Selected => Some(
                 div()
                     .absolute()
                     .flex()
@@ -124,8 +117,7 @@ impl Checkbox {
                     .text_size(icon_size)
                     .child("✓")
             ),
-            CheckboxState::Indeterminate => Some(
-                // Dash/minus
+            ToggleState::Indeterminate => Some(
                 div()
                     .absolute()
                     .flex()
@@ -141,16 +133,21 @@ impl Checkbox {
     }
 }
 
-impl Default for Checkbox {
-    fn default() -> Self {
-        Self::new()
+impl Toggleable for Checkbox {
+    fn toggle_state(mut self, state: ToggleState) -> Self {
+        self.state = state;
+        self
     }
 }
 
-impl IntoElement for Checkbox {
-    type Element = Div;
+impl Disableable for Checkbox {
+    fn disabled(self, disabled: bool) -> Self {
+        Self { disabled, ..self }
+    }
+}
 
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for Checkbox {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let box_size = self.get_box_size();
         let bg_color = self.get_background_color();
         let border_color = self.get_border_color();
@@ -169,14 +166,27 @@ impl IntoElement for Checkbox {
                 div.cursor_pointer()
                     .hover(|style| style.border_color(rgb(0x94a3b8)))
             })
+            .when(self.disabled, |div| div.cursor_not_allowed())
             .when_some(self.render_icon(), |div, icon| div.child(icon));
 
         let mut container = div()
+            .id(self.id)
             .flex()
             .items_center()
             .gap_2()
             .child(checkbox_box);
 
+        // Add click handler to the whole container
+        if !self.disabled {
+            if let Some(handler) = self.on_click {
+                let new_state = self.state.inverse();
+                container = container.on_click(move |_event, window, cx| {
+                    handler(&new_state, window, cx);
+                });
+            }
+        }
+
+        // Add label if present
         if let Some(label) = self.label {
             container = container.child(
                 div()
@@ -194,4 +204,3 @@ impl IntoElement for Checkbox {
         container
     }
 }
-

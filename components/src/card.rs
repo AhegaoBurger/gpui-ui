@@ -9,6 +9,7 @@ pub enum CardVariant {
 }
 
 /// Card header component
+#[derive(IntoElement)]
 pub struct CardHeader {
     title: Option<SharedString>,
     description: Option<SharedString>,
@@ -39,10 +40,8 @@ impl Default for CardHeader {
     }
 }
 
-impl IntoElement for CardHeader {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for CardHeader {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let mut header = div()
             .flex()
             .flex_col()
@@ -73,6 +72,7 @@ impl IntoElement for CardHeader {
 }
 
 /// Card content component
+#[derive(IntoElement)]
 pub struct CardContent {
     children: Vec<AnyElement>,
 }
@@ -101,10 +101,8 @@ impl Default for CardContent {
     }
 }
 
-impl IntoElement for CardContent {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for CardContent {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .p_6()
             .pt_0()
@@ -113,6 +111,7 @@ impl IntoElement for CardContent {
 }
 
 /// Card footer component
+#[derive(IntoElement)]
 pub struct CardFooter {
     children: Vec<AnyElement>,
 }
@@ -141,10 +140,8 @@ impl Default for CardFooter {
     }
 }
 
-impl IntoElement for CardFooter {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for CardFooter {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .flex()
             .items_center()
@@ -156,6 +153,7 @@ impl IntoElement for CardFooter {
 }
 
 /// A card container component
+#[derive(IntoElement)]
 pub struct Card {
     variant: CardVariant,
     children: Vec<AnyElement>,
@@ -179,33 +177,33 @@ impl Card {
         self
     }
 
-    pub fn header(self, header: CardHeader) -> Self {
-        self.child(header)
+    pub fn header(mut self, header: CardHeader) -> Self {
+        self.children.push(header.into_any_element());
+        self
     }
 
-    pub fn content(self, content: CardContent) -> Self {
-        self.child(content)
+    pub fn content(mut self, content: CardContent) -> Self {
+        self.children.push(content.into_any_element());
+        self
     }
 
-    pub fn footer(self, footer: CardFooter) -> Self {
-        self.child(footer)
+    pub fn footer(mut self, footer: CardFooter) -> Self {
+        self.children.push(footer.into_any_element());
+        self
     }
 
-    fn get_styles(&self) -> (Rgba, Option<Rgba>, Option<Hsla>) {
+    fn get_styles(&self) -> (Rgba, Option<Rgba>) {
         match self.variant {
             CardVariant::Elevated => (
                 rgb(0xffffff),
-                None,
-                Some(hsla(0.0, 0.0, 0.0, 0.1)),
+                Some(rgb(0xe5e7eb)), // Border to approximate shadow
             ),
             CardVariant::Outlined => (
                 rgb(0xffffff),
                 Some(rgb(0xe2e8f0)),
-                None,
             ),
             CardVariant::Filled => (
                 rgb(0xf8fafc),
-                None,
                 None,
             ),
         }
@@ -218,11 +216,9 @@ impl Default for Card {
     }
 }
 
-impl IntoElement for Card {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
-        let (bg_color, border_color, shadow) = self.get_styles();
+impl RenderOnce for Card {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
+        let (bg_color, border_color) = self.get_styles();
 
         let mut card = div()
             .flex()
@@ -236,13 +232,6 @@ impl IntoElement for Card {
             card = card.border_1().border_color(border);
         }
 
-        if let Some(_shadow_color) = shadow {
-            // TODO: Add shadow support when GPUI shadow API is clarified
-            // For now, using border to approximate elevated effect
-            card = card.border_1().border_color(rgb(0xe5e7eb));
-        }
-
         card
     }
 }
-

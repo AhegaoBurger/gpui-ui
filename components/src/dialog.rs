@@ -10,6 +10,7 @@ pub enum DialogSize {
 }
 
 /// Dialog header component
+#[derive(IntoElement)]
 pub struct DialogHeader {
     title: Option<SharedString>,
     description: Option<SharedString>,
@@ -40,10 +41,8 @@ impl Default for DialogHeader {
     }
 }
 
-impl IntoElement for DialogHeader {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for DialogHeader {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let mut header = div()
             .flex()
             .flex_col()
@@ -73,6 +72,7 @@ impl IntoElement for DialogHeader {
 }
 
 /// Dialog content component
+#[derive(IntoElement)]
 pub struct DialogContent {
     children: Vec<AnyElement>,
 }
@@ -101,10 +101,8 @@ impl Default for DialogContent {
     }
 }
 
-impl IntoElement for DialogContent {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for DialogContent {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .flex()
             .flex_col()
@@ -115,6 +113,7 @@ impl IntoElement for DialogContent {
 }
 
 /// Dialog footer component
+#[derive(IntoElement)]
 pub struct DialogFooter {
     children: Vec<AnyElement>,
 }
@@ -143,10 +142,8 @@ impl Default for DialogFooter {
     }
 }
 
-impl IntoElement for DialogFooter {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for DialogFooter {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         div()
             .flex()
             .justify_end()
@@ -156,6 +153,7 @@ impl IntoElement for DialogFooter {
 }
 
 /// A dialog/modal overlay component
+#[derive(IntoElement)]
 pub struct Dialog {
     size: DialogSize,
     open: bool,
@@ -186,16 +184,19 @@ impl Dialog {
         self
     }
 
-    pub fn header(self, header: DialogHeader) -> Self {
-        self.child(header)
+    pub fn header(mut self, header: DialogHeader) -> Self {
+        self.children.push(header.into_any_element());
+        self
     }
 
-    pub fn content(self, content: DialogContent) -> Self {
-        self.child(content)
+    pub fn content(mut self, content: DialogContent) -> Self {
+        self.children.push(content.into_any_element());
+        self
     }
 
-    pub fn footer(self, footer: DialogFooter) -> Self {
-        self.child(footer)
+    pub fn footer(mut self, footer: DialogFooter) -> Self {
+        self.children.push(footer.into_any_element());
+        self
     }
 
     fn get_width(&self) -> Pixels {
@@ -214,10 +215,8 @@ impl Default for Dialog {
     }
 }
 
-impl IntoElement for Dialog {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for Dialog {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         if !self.open {
             return div(); // Empty div when closed
         }
@@ -247,9 +246,7 @@ impl IntoElement for Dialog {
                     .rounded(px(12.0))
                     .border_1()
                     .border_color(rgb(0xe5e7eb))
-                    // TODO: Add shadow when GPUI shadow API is clarified
                     .children(self.children)
             )
     }
 }
-

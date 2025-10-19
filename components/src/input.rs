@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use gpui::prelude::*;
 
 /// Input type
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -27,8 +26,11 @@ pub enum InputVariant {
     Success,
 }
 
-/// A text input component
+/// A text input component (visual representation)
+/// Note: Full text input with editing requires focus management beyond this basic component
+#[derive(IntoElement)]
 pub struct Input {
+    id: Option<ElementId>,
     input_type: InputType,
     size: InputSize,
     variant: InputVariant,
@@ -43,6 +45,7 @@ pub struct Input {
 impl Input {
     pub fn new() -> Self {
         Self {
+            id: None,
             input_type: InputType::Text,
             size: InputSize::Medium,
             variant: InputVariant::Default,
@@ -53,6 +56,11 @@ impl Input {
             disabled: false,
             required: false,
         }
+    }
+
+    pub fn id(mut self, id: impl Into<ElementId>) -> Self {
+        self.id = Some(id.into());
+        self
     }
 
     pub fn input_type(mut self, input_type: InputType) -> Self {
@@ -184,10 +192,14 @@ impl Default for Input {
     }
 }
 
-impl IntoElement for Input {
-    type Element = Div;
+impl Disableable for Input {
+    fn disabled(self, disabled: bool) -> Self {
+        Self { disabled, ..self }
+    }
+}
 
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for Input {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let padding = self.get_padding();
         let border_color = self.get_border_color();
         let bg_color = self.get_background_color();
@@ -203,11 +215,15 @@ impl IntoElement for Input {
             .border_color(border_color)
             .rounded(px(6.0))
             .text_size(self.get_text_size())
-            .when(!self.disabled, |div| {
-                div.cursor_text()
-                    .hover(|style| style.border_color(rgb(0x94a3b8)))
-            })
             .child(self.render_value_or_placeholder());
+
+        let input_field = if !self.disabled {
+            input_field
+                .cursor_text()
+                .hover(|style| style.border_color(rgb(0x94a3b8)))
+        } else {
+            input_field.cursor_not_allowed()
+        };
 
         let mut container = div()
             .flex()
@@ -254,4 +270,3 @@ impl IntoElement for Input {
         container
     }
 }
-

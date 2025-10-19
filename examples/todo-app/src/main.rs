@@ -1,20 +1,35 @@
 use gpui::*;
 use gpui::prelude::*;
-use gpui_ui_components::*;
+use gpui_ui_components::{
+    Badge, BadgeSize, BadgeVariant, Button, ButtonVariant, ButtonSize,
+    Card, CardContent, CardFooter, CardHeader, CardVariant,
+    Checkbox, CheckboxSize, ToggleState,
+    Input, InputSize, InputVariant,
+};
+use gpui::Application;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// A simple todo item
+static NEXT_TODO_ID: AtomicUsize = AtomicUsize::new(0);
+
 #[derive(Clone, Debug)]
 struct TodoItem {
     id: usize,
-    text: String,
+    text: SharedString,
     completed: bool,
 }
 
-/// The main Todo App state
+impl TodoItem {
+    fn new(text: impl Into<SharedString>) -> Self {
+        Self {
+            id: NEXT_TODO_ID.fetch_add(1, Ordering::SeqCst),
+            text: text.into(),
+            completed: false,
+        }
+    }
+}
+
 struct TodoApp {
     todos: Vec<TodoItem>,
-    next_id: usize,
-    input_text: String,
     show_completed: bool,
 }
 
@@ -22,325 +37,200 @@ impl TodoApp {
     fn new() -> Self {
         Self {
             todos: vec![
-                TodoItem {
-                    id: 0,
-                    text: "Learn GPUI basics".to_string(),
-                    completed: true,
-                },
-                TodoItem {
-                    id: 1,
-                    text: "Build gpui-ui component library".to_string(),
-                    completed: true,
-                },
-                TodoItem {
-                    id: 2,
-                    text: "Create an awesome todo app".to_string(),
-                    completed: false,
-                },
-                TodoItem {
-                    id: 3,
-                    text: "Implement interactive features".to_string(),
-                    completed: false,
-                },
+                TodoItem::new("Learn GPUI"),
+                TodoItem::new("Build a component library"),
+                TodoItem::new("Make a todo app"),
             ],
-            next_id: 4,
-            input_text: String::new(),
             show_completed: true,
         }
     }
 
-    fn add_todo(&mut self, cx: &mut Context<Self>) {
-        if !self.input_text.trim().is_empty() {
-            self.todos.push(TodoItem {
-                id: self.next_id,
-                text: self.input_text.clone(),
-                completed: false,
-            });
-            self.next_id += 1;
-            self.input_text.clear();
-            cx.notify();
-        }
-    }
-
-    fn toggle_todo(&mut self, id: usize, cx: &mut Context<Self>) {
+    fn toggle_todo(&mut self, id: usize) {
         if let Some(todo) = self.todos.iter_mut().find(|t| t.id == id) {
             todo.completed = !todo.completed;
-            cx.notify();
         }
     }
 
-    fn delete_todo(&mut self, id: usize, cx: &mut Context<Self>) {
+    fn add_random_todo(&mut self) {
+        let random_todos = vec![
+            "Buy groceries",
+            "Walk the dog",
+            "Read a book",
+            "Write code",
+            "Go for a run",
+            "Call a friend",
+            "Clean the house",
+            "Learn something new",
+        ];
+        let random_index = (self.todos.len() % random_todos.len()) as usize;
+        self.todos.push(TodoItem::new(random_todos[random_index]));
+    }
+
+    fn remove_todo(&mut self, id: usize) {
         self.todos.retain(|t| t.id != id);
-        cx.notify();
     }
 
-    fn clear_completed(&mut self, cx: &mut Context<Self>) {
+    fn clear_completed(&mut self) {
         self.todos.retain(|t| !t.completed);
-        cx.notify();
     }
 
-    fn toggle_show_completed(&mut self, cx: &mut Context<Self>) {
+    fn toggle_show_completed(&mut self) {
         self.show_completed = !self.show_completed;
-        cx.notify();
-    }
-
-    fn active_count(&self) -> usize {
-        self.todos.iter().filter(|t| !t.completed).count()
-    }
-
-    fn completed_count(&self) -> usize {
-        self.todos.iter().filter(|t| t.completed).count()
-    }
-
-    fn visible_todos(&self) -> Vec<&TodoItem> {
-        if self.show_completed {
-            self.todos.iter().collect()
-        } else {
-            self.todos.iter().filter(|t| !t.completed).collect()
-        }
-    }
-
-    fn render_todo_item(&self, todo: &TodoItem, cx: &mut Context<Self>) -> impl IntoElement {
-        let todo_id = todo.id;
-        let is_completed = todo.completed;
-        
-        Card::new()
-            .variant(CardVariant::Outlined)
-            .child(
-                div()
-                    .flex()
-                    .items_center()
-                    .gap_3()
-                    .p_3()
-                    .child(
-                        // Checkbox with click handler
-                        div()
-                            .id(("checkbox", todo_id))
-                            .cursor_pointer()
-                            .on_click(cx.listener(move |this, _event, window, cx| {
-                                this.toggle_todo(todo_id, cx);
-                                window.refresh();
-                            }))
-                            .child(
-                                Checkbox::new()
-                                    .checked(is_completed)
-                                    .size(CheckboxSize::Medium)
-                            )
-                    )
-                    .child(
-                        div()
-                            .flex_1()
-                            .text_color(if todo.completed {
-                                rgb(0x94a3b8)
-                            } else {
-                                rgb(0x0f172a)
-                            })
-                            .when(todo.completed, |d| {
-                                d.line_through()
-                            })
-                            .child(todo.text.clone())
-                    )
-                    .child(
-                        div()
-                            .flex()
-                            .gap_2()
-                            .child(
-                                Badge::new(if todo.completed { "Done" } else { "Todo" })
-                                    .variant(if todo.completed {
-                                        BadgeVariant::Success
-                                    } else {
-                                        BadgeVariant::Warning
-                                    })
-                                    .size(BadgeSize::Small)
-                            )
-                            .child(
-                                // Delete button with click handler
-                                div()
-                                    .id(("delete", todo_id))
-                                    .cursor_pointer()
-                                    .on_click(cx.listener(move |this, _event, window, cx| {
-                                        this.delete_todo(todo_id, cx);
-                                        window.refresh();
-                                    }))
-                                    .child(
-                                        Button::new("Delete")
-                                            .variant(ButtonVariant::Destructive)
-                                            .size(ButtonSize::Small)
-                                    )
-                            )
-                    )
-            )
     }
 }
 
 impl Render for TodoApp {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let active_count = self.active_count();
-        let completed_count = self.completed_count();
+        let active_count = self.todos.iter().filter(|t| !t.completed).count();
+        let completed_count = self.todos.iter().filter(|t| t.completed).count();
+
+        let filtered_todos: Vec<TodoItem> = if self.show_completed {
+            self.todos.clone()
+        } else {
+            self.todos.iter().filter(|t| !t.completed).cloned().collect()
+        };
 
         div()
             .flex()
             .flex_col()
-            .items_center()
             .size_full()
-            .bg(rgb(0xf8fafc))
-            .p_8()
+            .bg(rgb(0xf8fafc)) // slate-50
+            .items_center()
+            .justify_center()
             .child(
                 Card::new()
                     .variant(CardVariant::Elevated)
                     .child(
                         CardHeader::new()
-                            .title("📝 Todo App")
-                            .description("A functional todo list built with GPUI-UI components")
+                            .title("Todo App")
+                            .description("A simple todo application built with GPUI and gpui-ui components.")
                     )
                     .child(
                         CardContent::new()
                             .child(
                                 div()
-                                    .w(px(600.0))
                                     .flex()
                                     .flex_col()
                                     .gap_4()
                                     .child(
-                                        // Stats badges
-                                        div()
-                                            .flex()
-                                            .gap_2()
-                                            .items_center()
-                                            .child(
-                                                Badge::new(format!("{} active", active_count))
-                                                    .variant(BadgeVariant::Primary)
-                                            )
-                                            .child(
-                                                Badge::new(format!("{} completed", completed_count))
-                                                    .variant(BadgeVariant::Success)
-                                            )
-                                            .child(
-                                                Badge::new(format!("{} total", self.todos.len()))
-                                                    .variant(BadgeVariant::Secondary)
-                                            )
-                                    )
-                                    .child(
-                                        // Note about limitations
-                                        div()
-                                            .p_3()
-                                            .bg(rgb(0xfef3c7))
-                                            .border_1()
-                                            .border_color(rgb(0xfcd34d))
-                                            .rounded(px(4.0))
-                                            .text_sm()
-                                            .text_color(rgb(0x78350f))
-                                            .child("Note: Text input is visual only. Click checkboxes and buttons to interact!")
-                                    )
-                                    .child(
-                                        // Input section (visual only for now)
-                                        Input::new()
-                                            .placeholder("What needs to be done?")
-                                            .value(&self.input_text)
-                                            .label("New Todo (visual only - use Add Todo button)")
-                                    )
-                                    .child(
-                                        // Action buttons with click handlers
                                         div()
                                             .flex()
                                             .gap_2()
                                             .child(
                                                 div()
-                                                    .id("add-todo-btn")
-                                                    .cursor_pointer()
-                                                    .on_click(cx.listener(|this, _event, window, cx| {
-                                                        // Add a random task for demo
-                                                        let tasks = vec![
-                                                            "Review code",
-                                                            "Write documentation",
-                                                            "Fix bugs",
-                                                            "Add tests",
-                                                            "Refactor components",
-                                                            "Update README",
-                                                        ];
-                                                        let task = tasks[this.next_id % tasks.len()];
-                                                        this.input_text = task.to_string();
-                                                        this.add_todo(cx);
-                                                        window.refresh();
-                                                    }))
+                                                    .flex_1()
                                                     .child(
-                                                        Button::new("Add Random Todo")
-                                                            .variant(ButtonVariant::Default)
-                                                            .size(ButtonSize::Medium)
+                                                        Input::new()
+                                                            .id("todo-input")
+                                                            .placeholder("Add a new todo...")
+                                                            .size(InputSize::Medium)
+                                                            .variant(InputVariant::Default)
                                                     )
                                             )
                                             .child(
-                                                div()
-                                                    .id("clear-input-btn")
-                                                    .cursor_pointer()
-                                                    .on_click(cx.listener(|this, _event, window, cx| {
-                                                        this.input_text.clear();
+                                                Button::new("add-random-btn", "Add Random Todo")
+                                                    .variant(ButtonVariant::Default)
+                                                    .size(ButtonSize::Medium)
+                                                    .on_click(cx.listener(|this, _event, _window, cx| {
+                                                        this.add_random_todo();
                                                         cx.notify();
-                                                        window.refresh();
                                                     }))
-                                                    .child(
-                                                        Button::new("Clear Input")
-                                                            .variant(ButtonVariant::Ghost)
-                                                            .size(ButtonSize::Medium)
-                                                    )
                                             )
                                     )
                                     .child(
-                                        // Filter checkbox with click handler
-                                        div()
-                                            .id("show-completed-checkbox")
-                                            .cursor_pointer()
-                                            .on_click(cx.listener(|this, _event, window, cx| {
-                                                this.toggle_show_completed(cx);
-                                                window.refresh();
-                                            }))
-                                            .child(
-                                                Checkbox::new()
-                                                    .checked(self.show_completed)
-                                                    .label("Show completed tasks")
-                                            )
-                                    )
-                                    .child(
-                                        // Todo list with interactive items
                                         div()
                                             .flex()
                                             .flex_col()
                                             .gap_2()
-                                            .children(
-                                                self.visible_todos().into_iter().map(|todo| {
-                                                    self.render_todo_item(todo, cx)
-                                                })
-                                            )
+                                            .children(filtered_todos.into_iter().map(|todo| {
+                                                let todo_id = todo.id;
+                                                let checkbox_id = ElementId::Name(format!("todo-checkbox-{}", todo_id).into());
+                                                let delete_btn_id = ElementId::Name(format!("todo-delete-{}", todo_id).into());
+                                                
+                                                div()
+                                                    .flex()
+                                                    .items_center()
+                                                    .justify_between()
+                                                    .p_2()
+                                                    .rounded(px(4.0))
+                                                    .hover(|s| s.bg(rgb(0xf1f5f9))) // slate-100
+                                                    .child(
+                                                        div()
+                                                            .flex()
+                                                            .items_center()
+                                                            .gap_2()
+                                                            .child(
+                                                                Checkbox::new(checkbox_id, ToggleState::from(todo.completed))
+                                                                    .size(CheckboxSize::Medium)
+                                                                    .on_click(cx.listener(move |this, _state, _window, cx| {
+                                                                        this.toggle_todo(todo_id);
+                                                                        cx.notify();
+                                                                    }))
+                                                            )
+                                                            .child(
+                                                                div()
+                                                                    .flex_1()
+                                                                    .text_color(if todo.completed {
+                                                                        rgb(0x94a3b8) // slate-400
+                                                                    } else {
+                                                                        rgb(0x0f172a) // slate-900
+                                                                    })
+                                                                    .when(todo.completed, |d| {
+                                                                        d.line_through()
+                                                                    })
+                                                                    .child(todo.text.clone())
+                                                            )
+                                                    )
+                                                    .child(
+                                                        Button::new(delete_btn_id, "Delete")
+                                                            .variant(ButtonVariant::Destructive)
+                                                            .size(ButtonSize::Small)
+                                                            .on_click(cx.listener(move |this, _event, _window, cx| {
+                                                                this.remove_todo(todo_id);
+                                                                cx.notify();
+                                                            }))
+                                                    )
+                                            }))
                                     )
                             )
                     )
                     .child(
                         CardFooter::new()
                             .child(
-                                Button::new(format!("{} items remaining", active_count))
-                                    .variant(ButtonVariant::Ghost)
-                                    .size(ButtonSize::Small)
-                            )
-                            .when(completed_count > 0, |d| {
-                                d.child(
-                                    div()
-                                        .id("clear-completed-btn")
-                                        .cursor_pointer()
-                                        .on_click(cx.listener(|this, _event, window, cx| {
-                                            this.clear_completed(cx);
-                                            window.refresh();
-                                        }))
-                                        .child(
-                                            Button::new("Clear Completed")
-                                                .variant(ButtonVariant::Outline)
-                                                .size(ButtonSize::Small)
-                                        )
-                                )
-                            })
-                            .child(
-                                Button::new("About")
-                                    .variant(ButtonVariant::Link)
-                                    .size(ButtonSize::Small)
+                                div()
+                                    .flex()
+                                    .w_full()
+                                    .justify_between()
+                                    .items_center()
+                                    .child(
+                                        Badge::new(format!("{} items left", active_count))
+                                            .variant(BadgeVariant::Outline)
+                                            .size(BadgeSize::Small)
+                                    )
+                                    .child(
+                                        div()
+                                            .flex()
+                                            .gap_2()
+                                            .child(
+                                                Checkbox::new("show-completed-checkbox", ToggleState::from(self.show_completed))
+                                                    .label("Show completed")
+                                                    .on_click(cx.listener(|this, _state, _window, cx| {
+                                                        this.toggle_show_completed();
+                                                        cx.notify();
+                                                    }))
+                                            )
+                                            .when(completed_count > 0, |d| {
+                                                d.child(
+                                                    Button::new("clear-completed-btn", "Clear Completed")
+                                                        .variant(ButtonVariant::Ghost)
+                                                        .size(ButtonSize::Small)
+                                                        .on_click(cx.listener(|this, _event, _window, cx| {
+                                                            this.clear_completed();
+                                                            cx.notify();
+                                                        }))
+                                                )
+                                            })
+                                    )
                             )
                     )
             )
@@ -348,14 +238,14 @@ impl Render for TodoApp {
 }
 
 fn main() {
-    Application::new().run(|cx: &mut App| {
-        let bounds = Bounds::centered(None, size(px(800.0), px(750.0)), cx);
-        
+    Application::new().run(move |cx: &mut App| {
+        let bounds = Bounds::centered(None, size(px(800.0), px(600.0)), cx);
+
         cx.open_window(
             WindowOptions {
                 window_bounds: Some(WindowBounds::Windowed(bounds)),
                 titlebar: Some(TitlebarOptions {
-                    title: Some("Interactive Todo App - GPUI UI Components".into()),
+                    title: Some("Todo App - GPUI UI Example".into()),
                     appears_transparent: false,
                     traffic_light_position: None,
                 }),
@@ -364,7 +254,7 @@ fn main() {
             |_window, cx| cx.new(|_cx| TodoApp::new()),
         )
         .unwrap();
-        
+
         cx.activate(true);
     });
 }

@@ -19,20 +19,25 @@ pub enum ButtonSize {
 }
 
 /// A customizable button component
+#[derive(IntoElement)]
 pub struct Button {
+    id: ElementId,
     variant: ButtonVariant,
     size: ButtonSize,
     disabled: bool,
     label: SharedString,
+    on_click: Option<Box<dyn Fn(&ClickEvent, &mut Window, &mut App) + 'static>>,
 }
 
 impl Button {
-    pub fn new(label: impl Into<SharedString>) -> Self {
+    pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
+            id: id.into(),
             variant: ButtonVariant::Default,
             size: ButtonSize::Medium,
             disabled: false,
             label: label.into(),
+            on_click: None,
         }
     }
 
@@ -48,6 +53,14 @@ impl Button {
 
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
+        self
+    }
+
+    pub fn on_click(
+        mut self,
+        handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static,
+    ) -> Self {
+        self.on_click = Some(Box::new(handler));
         self
     }
 
@@ -93,16 +106,30 @@ impl Button {
     }
 }
 
-impl IntoElement for Button {
-    type Element = Div;
+impl Clickable for Button {
+    fn on_click(self, handler: impl Fn(&ClickEvent, &mut Window, &mut App) + 'static) -> Self {
+        Self {
+            on_click: Some(Box::new(handler)),
+            ..self
+        }
+    }
+}
 
-    fn into_element(self) -> Self::Element {
+impl Disableable for Button {
+    fn disabled(self, disabled: bool) -> Self {
+        Self { disabled, ..self }
+    }
+}
+
+impl RenderOnce for Button {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let padding = self.get_padding();
         let bg_color = self.get_background_color();
         let text_color = self.get_text_color();
         let border_color = self.get_border_color();
 
         let mut button = div()
+            .id(self.id)
             .flex()
             .items_center()
             .justify_center()
@@ -111,7 +138,6 @@ impl IntoElement for Button {
             .bg(bg_color)
             .text_color(text_color)
             .rounded(px(4.0))
-            .cursor_pointer()
             .child(self.label.clone());
 
         if let Some(border) = border_color {
@@ -119,9 +145,17 @@ impl IntoElement for Button {
         }
 
         if !self.disabled {
-            button = button.hover(|style| {
-                style.opacity(0.9)
-            });
+            button = button
+                .cursor_pointer()
+                .hover(|style| style.opacity(0.9));
+                
+            if let Some(handler) = self.on_click {
+                button = button.on_click(move |event, window, cx| {
+                    handler(event, window, cx);
+                });
+            }
+        } else {
+            button = button.cursor_not_allowed();
         }
 
         button

@@ -21,6 +21,7 @@ pub enum BadgeSize {
 }
 
 /// A badge component for labels, tags, and status indicators
+#[derive(IntoElement)]
 pub struct Badge {
     variant: BadgeVariant,
     size: BadgeSize,
@@ -99,10 +100,8 @@ impl Badge {
     }
 }
 
-impl IntoElement for Badge {
-    type Element = Div;
-
-    fn into_element(self) -> Self::Element {
+impl RenderOnce for Badge {
+    fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let (px_padding, py_padding) = self.get_padding();
         let bg_color = self.get_background_color();
         let text_color = self.get_text_color();
@@ -138,4 +137,3 @@ impl IntoElement for Badge {
         badge
     }
 }
-
