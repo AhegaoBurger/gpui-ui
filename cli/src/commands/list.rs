@@ -1,27 +1,51 @@
 use anyhow::Result;
 use colored::Colorize;
 
+use crate::config::Config;
+use crate::registry::Registry;
+
 pub async fn run(verbose: bool) -> Result<()> {
+    let registry = Registry::new();
+    let components = registry.list_components();
+
     println!("{}", "Available components:".cyan().bold());
     println!();
 
-    // TODO: Fetch from registry
-    let components = vec![
-        ("button", "A customizable button component with multiple variants"),
-        ("input", "Text input with validation support"),
-        ("card", "Card container with header, content, and footer"),
-        ("dialog", "Modal dialog with overlay"),
-        ("select", "Dropdown select with single/multi-select"),
-        ("checkbox", "Checkbox input component"),
-        ("badge", "Badge component for labels and tags"),
-        ("toast", "Toast notification component"),
-    ];
+    for component in components {
+        print!("  {} {}", "▸".cyan(), component.name.bold());
 
-    for (name, description) in components {
-        println!("  {} {}", "▸".cyan(), name.bold());
-        if verbose {
-            println!("    {}", description.dimmed());
+        // Show if already installed
+        if Config::exists() {
+            if let Ok(config) = Config::load() {
+                if config.components.iter().any(|c| c.name == component.name) {
+                    print!(" {}", "(installed)".green().dimmed());
+                }
+            }
         }
+
+        println!();
+
+        if verbose {
+            println!("    {}", component.description.dimmed());
+            println!("    {} {}", "Version:".dimmed(), component.version.dimmed());
+
+            if !component.dependencies.is_empty() {
+                println!(
+                    "    {} {}",
+                    "Dependencies:".dimmed(),
+                    component.dependencies.join(", ").dimmed()
+                );
+            }
+            println!();
+        }
+    }
+
+    if !verbose {
+        println!();
+        println!(
+            "Run {} for detailed information about each component",
+            "gpui-ui list --verbose".cyan()
+        );
     }
 
     println!();

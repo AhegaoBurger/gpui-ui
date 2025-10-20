@@ -1,5 +1,6 @@
 mod commands;
 mod config;
+mod registry;
 mod utils;
 
 use anyhow::Result;
